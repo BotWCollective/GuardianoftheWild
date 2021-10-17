@@ -1,42 +1,65 @@
-use tokio::net::TcpStream;
-use std::io::Result as IoResult;
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
+use crate::BotResult;
+use log::{debug, info};
+use std::net::TcpStream;
+use tungstenite::{connect, Message, WebSocket};
+use url::Url;
 
-pub struct IrcClient {
-	conn: TcpStream,
-	name: String,
-	pass: String,
-	channel: String,
-	buf: [u8; 1024]
+pub struct TwitchIrcClient {
+    conn: WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
+    nick: String,
+    pass: String,
+    channel: String,
 }
 
-impl IrcClient {
-	pub async fn connect(addr: (String, u16), name: String, pass: String, channel: String) -> IoResult<Self> {
-		let conn = TcpStream::connect(addr).await?;
-		let mut client = Self {conn, name: name.to_ascii_lowercase(), pass, channel: channel.to_ascii_lowercase(), buf: [0; 1024]};
-		client.send("PASS", &client.pass.clone()).await?;
-		client.send("NICK", &client.name.clone()).await?;
-		client.send("JOIN", &client.channel.clone()).await?;
-		Ok(client)
-	}
-	pub async fn get_message(&mut self) -> IoResult<String> {
-		self.buf = [0; 1024];
-		let bytes = self.conn.read(&mut self.buf).await?;
-		let msg = unsafe {String::from_utf8_unchecked(self.buf[..bytes].to_vec())};
-		if msg == "PING :tmi.twitch.tv" {
-			self.pong().await?;
-			return Ok("".into());
-		}
-		Ok(msg)
-	}
-	pub async fn send_message(&mut self, message: &str) -> IoResult<()> {
-		self.send("PRIVMSG", message).await
-	}
-	async fn send(&mut self, command: &str, message: &str) -> IoResult<()> {
-		self.conn.write(&(format!("{} {}", command, message).into_bytes())[..]).await.map(|_| ())
-	}
-	async fn pong(&mut self) -> IoResult<()> {
-		self.conn.write(b"PONG :tmi.twitch.tv").await?;
-		Ok(())
-	}
+impl TwitchIrcClient {
+    pub fn connect(nick: String, pass: String, channel: String) -> BotResult<Self> {
+        let (mut sock, _) =
+            connect(Url::parse("ws://irc-ws.chat.twitch.tv:80").unwrap()).expect("cant connect");
+        let mut r = Self {
+            conn: sock,
+            nick: nick.clone(),
+            pass: pass.clone(),
+            channel: channel.clone(),
+        };
+        info!("Connected to Twitch");
+        r.send_cmd("PASS", &pass)?;
+        info!("Sent PASS");
+        r.send_cmd("NICK", &nick)?;
+        info!("Identified as {}", nick);
+        r.send_cmd("JOIN", &channel)?;
+        info!("JOINed {}", channel);
+        // throw out the twitch welcome messages
+        r.get_message()?;
+        r.get_message()?;
+        Ok(r)
+    }
+    pub fn get_message(&mut self) -> BotResult<String> {
+        let msg = self.conn.read_message()?;
+        debug!("Got message from Twitch: {}", msg);
+        if let Message::Text(t) = msg {
+            if t == "PING :tmi.twitch.tv\r\n" {
+                debug!("Got Ping");
+                self.conn
+                    .write_message(Message::Text("PONG :tmi.twitch.tv".into()))?;
+                debug!("Sent Pong");
+                return Ok("".into());
+            }
+            return Ok(t);
+        }
+        Ok("".into())
+    }
+    pub fn send_message(&mut self, message: &str) -> BotResult<()> {
+        self.send_cmd(
+            &format!("PRIVMSG {}", self.channel),
+            &format!(":{}", message),
+        )
+    }
+    pub fn send_cmd(&mut self, cmd: &str, message: &str) -> BotResult<()> {
+        let r = self
+            .conn
+            .write_message(Message::Text(format!("{} {}", cmd, message)))
+            .map_err(|e| e.into());
+        debug!("Sent {} {}", cmd, message);
+        r
+    }
 }
