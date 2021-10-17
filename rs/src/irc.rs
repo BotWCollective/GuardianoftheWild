@@ -23,11 +23,11 @@ impl TwitchIrcClient {
         };
         info!("Connected to Twitch");
         r.send_cmd("PASS", &pass)?;
-        info!("Sent PASS");
+        info!("Sent password");
         r.send_cmd("NICK", &nick)?;
         info!("Identified as {}", nick);
         r.send_cmd("JOIN", &channel)?;
-        info!("JOINed {}", channel);
+        info!("Joined {}", channel);
         // throw out the twitch welcome messages
         r.get_message()?;
         r.get_message()?;
@@ -35,7 +35,7 @@ impl TwitchIrcClient {
     }
     pub fn get_message(&mut self) -> BotResult<String> {
         let msg = self.conn.read_message()?;
-        debug!("Got message from Twitch: {}", msg);
+        debug!("Got message from Twitch: {:?}", msg);
         if let Message::Text(t) = msg {
             if t == "PING :tmi.twitch.tv\r\n" {
                 debug!("Got Ping");
