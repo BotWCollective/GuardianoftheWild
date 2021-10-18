@@ -5,7 +5,7 @@ edition = "2018"
 
 [lib]
 name = "gotw"
-path = "src/lib.rs"
+path = "src/gotw/lib.rs"
 
 [[bin]]
 name = "guardianofthewild"
