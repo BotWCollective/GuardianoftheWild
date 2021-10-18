@@ -12,7 +12,7 @@ impl User {
             .split(';')
             .map(|p| {
                 let p = p.split_once('=').unwrap_or(("", ""));
-                (p.0.to_string(), p.1.to_string())
+                (p.0.replace('@', ""), p.1.to_string())
             })
             .collect::<HashMap<String, String>>();
         Self {
