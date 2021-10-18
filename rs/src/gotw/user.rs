@@ -1,4 +1,3 @@
-use crate::BotResult;
 use std::collections::HashMap;
 
 #[derive(Debug)]

@@ -6,19 +6,19 @@ use url::Url;
 
 pub struct TwitchIrcClient {
     conn: WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
-    nick: String,
-    pass: String,
+    _nick: String,
+    _pass: String,
     channel: String,
 }
 
 impl TwitchIrcClient {
     pub fn connect(nick: String, pass: String, channel: String) -> BotResult<Self> {
-        let (mut sock, _) =
+        let (sock, _) =
             connect(Url::parse("ws://irc-ws.chat.twitch.tv:80").unwrap()).expect("cant connect");
         let mut r = Self {
             conn: sock,
-            nick: nick.clone(),
-            pass: pass.clone(),
+            _nick: nick.clone(),
+            _pass: pass.clone(),
             channel: channel.clone(),
         };
         info!("Connected to Twitch");
