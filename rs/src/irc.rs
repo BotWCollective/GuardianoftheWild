@@ -28,7 +28,9 @@ impl TwitchIrcClient {
         info!("Identified as {}", nick);
         r.send_cmd("JOIN", &channel)?;
         info!("Joined {}", channel);
+        r.send_cmd("CAP REQ", ":twitch.tv/tags twitch.tv/commands")?;
         // throw out the twitch welcome messages
+        r.get_message()?;
         r.get_message()?;
         r.get_message()?;
         Ok(r)
