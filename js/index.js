@@ -1,6 +1,52 @@
-//Komali, add more semicolons
+// Komali, add more semicolons
+
+// no >:( 
+
 
 let e = require("events");
+let fs = require("fs"); 
+
+let CurrencySystem = class {
+    constructor(type) {
+        this.type=type;
+        this.dat = {};
+    }
+    init() {
+        this._loadjson();
+    }
+    _loadjson() {
+        this.dat = JSON.parse(fs.readFileSync("./currency.json").toString());
+    }
+    _writejson() {
+        fs.writeFileSync("./currency.json", JSON.stringify(this.dat));
+    }
+    get(user) {
+        this._loadjson();
+        if(!this.dat[user]) return 0;
+        this._writejson();
+        return this.dat[user].value;
+    }
+    getAll() {
+        this._loadjson();
+        let outObj = {
+            twitch: [],
+            discord: []
+        };
+        let _i;
+        for(_i in Object.keys(this.dat)) {
+            let i = Object.keys(this.dat)[_i];
+            outObj[this.dat[i].sm].push((()=>{let _={};_[i]=this.dat[i].value;return _})()); // that was fun :D
+        }
+        this._writejson();
+        return outObj;
+    }
+    change(user, amt, d) {
+        if(!this.dat[user]) this.dat[user] = {value:0,sm:d};
+        this.dat[user].value += amt;
+        this.dat[user].sm = d; // Just in case
+        this._writejson(); 
+    }
+}
 
 let Timeouts = class {
     constructor() {
@@ -63,10 +109,12 @@ const default_colors = ["#FF0000", "#0000FF", "#00FF00", "#B22222", "#FF7F50", "
 const discord = require("discord.js");
 const tmi = require("tmi.js");
 const fetch = require("node-fetch");
-const fs = require("fs");
 
 const bot = new e;
 let t = new Timeouts();
+let cst = new Timeouts();
+let cs = new CurrencySystem("<:rupee:899416200663158814>");
+cs.init();
 const tmi_client = new tmi.client({
     identity: {
         username: "GuardianOfTheWild",
@@ -77,7 +125,7 @@ const tmi_client = new tmi.client({
     ]
 });
 tmi_client.connect();
-let counter = new MessageCounter(200, 900000, ()=>tmi_client.say("botwcollective", "Having fun? Don't forget to clip to help out the highlight videos!"));
+let counter = new MessageCounter(100, 900000, ()=>tmi_client.say("botwcollective", "Having fun? Don't forget to clip to help out the highlight videos!"));
 const djs_client = new discord.Client({ws: {Intents: discord.Intents.ALL}});
 tmi_client.on("connected", () => {
     console.log("On! (twitch)");
@@ -101,13 +149,15 @@ tmi_client.on("message",  (channel, user, _message, self) => {
         discord: false,
         twitch: true
     }
+    message.user.identification = message.user["display-name"];
     bot.emit("message", message)
 });
 djs_client.on("message", message => {
     message.discord = true
     message.twitch = false;
     message.user = message.author
-    message.user["display-name"] = message.author.username
+    message.user["display-name"] = message.author.username;
+    message.user.identification = message.user.id;
     bot.emit("message", message)
 })
 
@@ -143,7 +193,7 @@ bot.on("message", message => {
     }
     if(message.twitch) {
         if (message.content.trim().toLowerCase().includes("bigfollows") || message.content.trim().toLowerCase().includes("want to become famous") || message.content.trim().toLowerCase().includes("wanna become famous") || message.content.trim().toLowerCase().includes("wanna be famous") || message.content.trim().toLowerCase().includes("want to be famous")) {
-            tmi_client.timeout(message.channel, user['display-name'], 1, "We don't like bots, do we?")
+            tmi_client.timeout(message.channel, message.user['display-name'], 1, "We don't like bots, do we?")
         }
         if (message.user && message.user.color == null) {
             var n = message.user['display-name'].charCodeAt(0) + message.user['display-name'].charCodeAt(message.user['display-name'].length - 1);
@@ -151,10 +201,32 @@ bot.on("message", message => {
         }
     }
 
+    // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    if((message.twitch && message.channel == "#botwcollective" && !message.self) || (message.discord && !message.user.bot && message.guild && message.guild.id == "731993922414575737")) 
+    {
+        if(cst.check(message.user.identification, 60000)) {
+            cst.set(message.user.identification);
+            cs.change(message.user.identification, 1, message.discord ? "discord" : "twitch");
+        }
+    }
+    // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
     let args = message.content.trim().split(" ");
     args[0] = args[0].toLowerCase();
     if (args[0] == "!discord") {
         reply("Join the discord server! discord.gg/hylian");
+    }
+    if (args[0] == "!yt" || args[0] == "!youtube") {
+        reply("Subscribe to our Youtube channel! https://www.youtube.com/channel/UC7C948AM_7cNIORd22Rr_SQ");
+    }
+    if (args[0] == "!twitter") {
+        reply("Go follow our Twitter page! https://twitter.com/BotwCollective");
+    }
+    if (args[0] == "!bingothon") {
+        reply("Go follow Bingothon! https://twitch.tv/bingothon");
+    }
+    if (args[0] == "!bal" || args[0] == "!balance") {
+        reply(`You have ${cs.get(message.user.identification)} ${cs.type}`)
     }
     if (args[0] == "!hug") {
         if(!args[1]) {
@@ -170,9 +242,7 @@ bot.on("message", message => {
     }
     if (args[0] == "!slots") {
         let ms_timeout = 5000;
-        let id;
-        if(message.discord) id = message.user.id;
-        if(message.twitch) id = message.user.username
+        let id = message.user.identification;
         if(t.check(id, ms_timeout)) {
             t.set(id);
             var slotStr = "";
@@ -199,7 +269,55 @@ bot.on("message", message => {
         }
         else {
             reply(`You may not play for ${((t.get(id)+ms_timeout)-Date.now())/1000} seconds!`)
+        } 
+    }
+    if(args[0] == "!lb" || args[0] == "!leaderboard") {
+        if (message.twitch) return;
+        let lbsm = args[1] ? args[1] : "all";
+        if (args[1] && (args[1] == "discord" || args[1] != "twitch")) {
+            return reply("Argument 2 must be \`discord\`, \`twitch\` or undefined");
         }
+
+        let lb = cs.getAll();
+        if(lbsm != "all") lb = lb[lbsm];
+        else {
+            let arr = [];
+            lb.discord.forEach(x=>{
+                let _o = {};
+                _o["<@"+Object.keys(x)[0]+">"] = Object.values(x)[0]
+                arr.push(_o);
+            })
+            lb.twitch.forEach(x=>{
+                let _o = {};
+                _o["`"+Object.keys(x)[0]+"`"] = Object.values(x)[0]
+                arr.push(_o);
+            })
+            lb = arr;
+            
+        }
+        lb = lb.sort((a,b)=>(Object.values(b)[0] - Object.values(a)[0]));
+        let embed = new discord.MessageEmbed();
+        embed.setTitle((lbsm == "discord" ? "Discord" : lbsm == "twitch" ? "Twitch" : "Full") + " Leaderboard");
+        embed.setColor("#1a7ce2");
+        embed.setFooter("You can do !lb <discord|twitch> for a more specific leaderboard!");
+        if(lbsm == "discord") {
+            embed.setDescription(
+                lb.map(x=>`<@${Object.keys(x)[0]}>: ${Object.values(x)[0]} ${cs.type}`)
+            );
+        }
+        else if(lbsm == "twitch") {
+            embed.setDescription(
+                lb.map(x=>`\`${Object.keys(x)[0]}\`: ${Object.values(x)[0]} ${cs.type}`)
+            );
+        }
+        else {
+            embed.setDescription(
+                lb.map(x=>`${Object.keys(x)[0]}: ${Object.values(x)[0]} ${cs.type}`)
+            );
+        }
+        reply(embed);
+        
+        
     }
     if(args[0] == "!test") {
        //nothing here atm
