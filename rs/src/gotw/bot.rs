@@ -1,14 +1,12 @@
-use crate::{BotError, BotResult, TwitchIrcClient, User};
+use crate::{command::CommandMap, BotError, BotResult, TwitchIrcClient, User};
 use log::{debug, info};
-use std::collections::HashMap;
 use std::env;
 use std::fmt;
 
 pub struct Bot {
     client: TwitchIrcClient,
     prefix: String,
-    // string to string for now until command maps are sorted out
-    commands: HashMap<String, String>,
+    commands: CommandMap,
     config: BotConfig,
 }
 
@@ -63,7 +61,7 @@ impl Bot {
                 cfg.channel.clone(),
             )?,
             prefix: cfg.prefix.clone(),
-            commands: HashMap::new(),
+            commands: CommandMap::new(),
             config: cfg,
         });
         info!("Bot logged in");
@@ -112,12 +110,12 @@ impl Bot {
             let command = split.next().unwrap().split_once(&self.prefix).unwrap().1;
             let command = &command[..command.len() - 2];
             let mut args = vec![];
-			while let Some(a) = split.next() {
-				args.push(a.to_string());
-			}
+            while let Some(a) = split.next() {
+                args.push(a.to_string());
+            }
             ret = Ok(Some(Message {
                 command: Some(command.to_string()),
-                args: if args.is_empty() {None} else {Some(args)},
+                args: if args.is_empty() { None } else { Some(args) },
                 sender: user,
                 raw: raw.to_string(),
             }));
