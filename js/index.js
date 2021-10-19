@@ -240,7 +240,8 @@ bot.on("message", message => {
             if(isNaN(args[1])) return reply("Argument 1 is not a number!");
             
             args[1] = parseInt(args[1]);
-            if(current < args[1]) return reply("You do not have " + args[1] + cs.getRupee(args[1]))
+            if(current < args[1]) return reply("You do not have " + args[1] + cs.getRupee(args[1]));
+            if(args[1] < 1) return reply(`No, you can't bet ${args[1] + cs.getRupee(args[1])}. Nice Try.`)
             if(Math.random()>0.5) {
                 cst.set(message.user.identification);
                 cs.change(message.user.identification, args[1]*-1, message.discord ? "discord" : "twitch") 
@@ -287,7 +288,7 @@ bot.on("message", message => {
     }
     if (args[0] == "!bal" || args[0] == "!balance") {
         let v = cs.get(message.user.identification);
-        reply(`You have ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${cs.getRupee(v)}`)
+        reply(`You have ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${message.discord ? cs.getRupee(v) : " Rupees"}!`)
     }
     if (args[0] == "!hug") {
         if(!args[1]) {
