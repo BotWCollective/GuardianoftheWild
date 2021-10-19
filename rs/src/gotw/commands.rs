@@ -32,25 +32,35 @@ impl CommandPerms {
 	}
 }
 
+pub enum CommandAction {
+	Static {ret: String},
+	Template {template: String},
+	Script {command: String, file: String}
+}
+
+pub enum CommandResult {
+	Success(String),
+	InsufficientPermissions
+}
+
+use CommandResult::*;
+
 impl Command {
 	pub fn new(perms: CommandPerms, action: CommandAction) -> Self {
 		Self {
 			perms, action, runs: 0
 		}
 	}
-	pub fn run(&mut self, user: User) -> bool {
+	pub fn run(&mut self, user: User) -> CommandResult {
 		if self.perms > CommandPerms::max(&user) {
-			return false;
+			return InsufficientPermissions;
 		}
-		// do something eventually
 		self.runs = self.runs + 1;
-		true
+		match &self.action {
+			CommandAction::Static {ret} => Success(ret.into()),
+			// do something eventually
+			_ => Success("".into())
+		}
 	}
-}
-
-pub enum CommandAction {
-	Static {ret: String},
-	Template {template: String},
-	Script {command: String, file: String}
 }
 
