@@ -1,6 +1,7 @@
 use crate::user::User;
 use crate::bot::Message;
 
+#[derive(Clone)]
 pub struct Command {
 	perms: CommandPerms,
 	action: CommandAction,
@@ -8,7 +9,7 @@ pub struct Command {
 }
 
 
-#[derive(PartialEq, Eq, PartialOrd)]
+#[derive(PartialEq, Eq, PartialOrd, Clone)]
 pub enum CommandPerms {
 	Anyone,
 	Vip,
@@ -32,6 +33,7 @@ impl CommandPerms {
 	}
 }
 
+#[derive(Clone)]
 pub enum CommandAction {
 	Static {ret: String},
 	Template {template: String},
