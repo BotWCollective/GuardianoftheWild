@@ -27,3 +27,9 @@ version = "0.9"
 [dependencies.log]
 version = "0.4"
 features = ["std"]
+
+[dependencies.fasthash]
+version = "0.4"
+git = "https://github.com/flier/rust-fasthash"
+default-features = false
+features = ["native", "seahash"]

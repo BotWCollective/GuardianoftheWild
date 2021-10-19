@@ -1,15 +1,16 @@
 use super::commands::{Command, CommandPerms};
 use crate::bot::Message;
 use std::collections::HashMap;
+use fasthash::{sea::Hash64, RandomState};
 
 pub struct CommandMap {
-    map: HashMap<String, Command>,
+    map: HashMap<String, Command, RandomState<Hash64>>,
 }
 
 impl CommandMap {
     pub fn new() -> Self {
         Self {
-            map: HashMap::new(),
+            map: HashMap::with_hasher(RandomState::<Hash64>::new()),
         }
     }
     pub fn run_command(&mut self, msg: Message) -> Option<String> {
