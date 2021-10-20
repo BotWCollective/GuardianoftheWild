@@ -12,6 +12,12 @@ let CurrencySystem = class {
     }
     init() {
         this._loadjson();
+        let _i;
+        for(_i in Object.keys(this.dat)) {
+            let i = Object.keys(this.dat)[_i];
+            if(isNaN(this.dat[i].value)) this.dat[i].value = 0; // Useful for times like when savage realized you could do !gamble Infinity
+        }
+        this._writejson();
     }
     _loadjson() {
         this.dat = JSON.parse(fs.readFileSync("./currency.json").toString());
@@ -32,14 +38,16 @@ let CurrencySystem = class {
             discord: []
         };
         let _i;
-        for(_i in Object.keys(this.dat)) {
+        for(_i in Object.keys(this.dat)) { 
             let i = Object.keys(this.dat)[_i];
+            console.log(this.dat[i].sm)
             outObj[this.dat[i].sm].push((()=>{let _={};_[i]=this.dat[i].value;return _})()); // that was fun :D
         }
         this._writejson();
         return outObj;
     }
-    getRupee(n) {
+    getRupee(n, d=false) {
+        if(d) return " Rupees";
         let green = "<:rupee:899771488792608789>";
         let blue = "<:rupee5:899770964529807430>";
         let red = "<:rupee20:899770964454289468>";
@@ -234,23 +242,24 @@ bot.on("message", message => {
     if(args[0] == "!gamble") {
         if(gst.check(message.user.identification, 600000)) {
             let current = cs.get(message.user.identification);
-            if(current <= 0) return reply("Get some " + cs.getRupee(1) + " first!")
+            if(current <= 0) return reply("Get some " + cs.getRupee(1,message.twitch) + " first!")
             if(!args[1]) return reply("A second argument is required!");
             if(args[1].toLowerCase() == "all") args[1] = current;
             if(isNaN(args[1])) return reply("Argument 1 is not a number!");
             
             args[1] = parseInt(args[1]);
-            if(current < args[1]) return reply("You do not have " + args[1] + cs.getRupee(args[1]));
-            if(args[1] < 1) return reply(`No, you can't bet ${args[1] + cs.getRupee(args[1])}. Nice Try.`)
+            if(current < args[1]) return reply("You do not have " + args[1] + cs.getRupee(args[1],message.twitch));
+            if(args[1] < 1 || isNaN(args[1])) return reply(`No, you can't bet ${args[1] + cs.getRupee(args[1],message.twitch)}. Nice Try.`);
+
             if(Math.random()>0.5) {
                 cst.set(message.user.identification);
                 cs.change(message.user.identification, args[1]*-1, message.discord ? "discord" : "twitch") 
-                reply(`You lost ${args[1]}${cs.getRupee(args[1])}. You now have ${cs.get(message.user.identification)}${cs.getRupee(cs.get(message.user.identification))}`);
+                reply(`You lost ${args[1]}${cs.getRupee(args[1],message.twitch)}. You now have ${cs.get(message.user.identification)}${cs.getRupee(cs.get(message.user.identification),message.twitch)}`);
             }
             else {
                 cst.set(message.user.identification);
                 cs.change(message.user.identification, args[1], message.discord ? "discord" : "twitch") 
-                reply(`You won ${args[1]}${cs.getRupee(args[1])}. You now have ${cs.get(message.user.identification)}${cs.getRupee(cs.get(message.user.identification))}`);
+                reply(`You won ${args[1]}${cs.getRupee(args[1],message.twitch)}. You now have ${cs.get(message.user.identification)}${cs.getRupee(cs.get(message.user.identification),message.twitch)}`);
             }
             return gst.set(message.user.identification);
 
@@ -288,7 +297,7 @@ bot.on("message", message => {
     }
     if (args[0] == "!bal" || args[0] == "!balance") {
         let v = cs.get(message.user.identification);
-        reply(`You have ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${message.discord ? cs.getRupee(v) : " Rupees"}!`)
+        reply(`You have ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${cs.getRupee(v,message.twitch)}!`)
     }
     if (args[0] == "!hug") {
         if(!args[1]) {
