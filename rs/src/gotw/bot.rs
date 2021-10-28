@@ -123,18 +123,18 @@ impl Bot {
         ret
     }
     pub fn wait_commands(&mut self) -> BotResult<()> {
-	    let mut msg: Message;
-	    loop {
-		    if let Some(m) = self.try_parse_message()? {
-				msg = m;
-		    } else {
-				continue;
-		    }
-		    if msg.command.is_some() {
-				if let Some(send) = self.commands.run_command(msg) {
-					self.client.send_message(&send)?;
-				}
-		    }
-	    }
+        let mut msg: Message;
+        loop {
+            if let Some(m) = self.try_parse_message()? {
+                msg = m;
+            } else {
+                continue;
+            }
+            if msg.command.is_some() {
+                if let Some(send) = self.commands.run_command(msg) {
+                    self.client.send_message(&send)?;
+                }
+            }
+        }
     }
 }

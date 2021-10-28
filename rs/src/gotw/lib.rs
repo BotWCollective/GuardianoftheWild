@@ -15,7 +15,7 @@ pub enum BotError {
     MissingEnvironment(std::env::VarError),
     Ws(tungstenite::error::Error),
     MessageParse(String),
-    Command(command::CommandError)
+    Command(command::CommandError),
 }
 impl From<std::env::VarError> for BotError {
     fn from(e: std::env::VarError) -> Self {
@@ -40,7 +40,7 @@ impl fmt::Display for BotError {
             Self::MissingEnvironment(e) => e.to_string(),
             Self::Ws(e) => e.to_string(),
             Self::MessageParse(e) => e.to_string(),
-            Self::Command(e) => format!("{:?}", e)
+            Self::Command(e) => format!("{:?}", e),
         };
         write!(f, "{}", s)
     }
