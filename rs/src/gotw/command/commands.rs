@@ -1,4 +1,3 @@
-use crate::bot::Message;
 use crate::user::User;
 
 #[derive(Clone)]
