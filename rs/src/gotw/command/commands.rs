@@ -1,4 +1,12 @@
 use crate::user::User;
+use super::CommandError;
+use crate::{BotResult, BotError};
+
+use std::cmp::{Ordering, Ord};
+
+pub trait Runnable {
+	fn run(&self, user: User) -> BotResult<Option<String>>;
+}
 
 #[derive(Clone)]
 pub struct Command {
@@ -46,12 +54,16 @@ pub enum CommandAction {
     Script { command: String, file: String },
 }
 
-pub enum CommandResult {
-    Success(String),
-    InsufficientPermissions,
-}
+impl CommandAction {
+	fn run(&self) -> BotResult<Option<String>> {
+        match &self {
+            CommandAction::Static { ret } => Ok(Some(ret.into())),
+            // do something eventually
+            _ => Ok(Some("".into())),
+        }
 
-use CommandResult::*;
+	}
+}
 
 impl Command {
     pub fn new(perms: CommandPerms, action: CommandAction) -> Self {
@@ -61,15 +73,62 @@ impl Command {
             runs: 0,
         }
     }
-    pub fn run(&mut self, user: User) -> CommandResult {
+    pub fn run(&mut self, user: User) -> BotResult<Option<String>> {
         if self.perms > CommandPerms::max(&user) {
-            return InsufficientPermissions;
+            return Err(BotError::Command(CommandError::InsufficientPerms));
         }
-        self.runs = self.runs + 1;
-        match &self.action {
-            CommandAction::Static { ret } => Success(ret.into()),
-            // do something eventually
-            _ => Success("".into()),
-        }
+        self.runs += 1;
+        self.action.run()
     }
 }
+
+impl Runnable for Command {
+	fn run(&self, user: User) -> BotResult<Option<String>> {
+        if self.perms > CommandPerms::max(&user) {
+            return Err(BotError::Command(CommandError::InsufficientPerms));
+        }
+        self.runs += 1;
+        self.action.run()
+	}
+}
+
+pub struct Trigger {
+	priority: usize,
+	action: CommandAction,
+	runs: usize
+}
+
+impl Trigger {
+	pub fn new(priority: usize, action: CommandAction) -> Self {
+		Self {
+			priority,
+			action,
+			runs: 0
+		}
+	}
+}
+
+impl Runnable for Trigger {
+	fn run(&self, _user: User) -> BotResult<Option<String>> {
+        self.runs += 1;
+        self.action.run()
+	}
+}
+
+impl PartialEq for Trigger {
+	fn eq(&self, other: &Self) -> bool {
+		self.priority == other.priority
+	}
+}
+impl Eq for Trigger {}
+impl PartialOrd for Trigger {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.priority.cmp(&other.priority))
+	}
+}
+impl Ord for Trigger {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.partial_cmp(other).unwrap()
+	}
+}
+

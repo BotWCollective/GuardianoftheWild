@@ -8,4 +8,5 @@ pub enum CommandError {
     AlreadyRegistered,
     CommandFailed,
     NotEnoughArgs,
+    InsufficientPerms
 }
