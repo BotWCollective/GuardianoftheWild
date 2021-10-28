@@ -30,25 +30,14 @@ impl BotConfig {
 
 #[derive(Debug)]
 pub struct Message {
-    pub command: Option<String>,
-    pub args: Option<Vec<String>>,
+    pub words: Vec<String>,
     pub sender: User,
     pub raw: String,
 }
 
 impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Message from {}: {} {}",
-            self.sender.username(),
-            self.raw,
-            if let Some(c) = self.command.as_ref() {
-                c.to_string()
-            } else {
-                String::new()
-            }
-        )
+        write!(f, "Message from {}: {}", self.sender.username(), self.raw,)
     }
 }
 
@@ -67,7 +56,7 @@ impl Bot {
         info!("Bot logged in");
         r
     }
-    pub fn try_parse_message(&mut self) -> BotResult<Option<Message>> {
+    fn try_parse_message(&mut self) -> BotResult<Option<Message>> {
         let ret: BotResult<Option<Message>>;
         let message: String = self.client.get_message()?;
         if message.is_empty()
@@ -96,31 +85,13 @@ impl Bot {
             ))?;
         let raw = message.collect::<Vec<&str>>().join(":");
         let user = User::parse(tags, sender);
-        if !raw.starts_with(&self.prefix) {
-            debug!("Message {:?} is not command", raw);
-            ret = Ok(Some(Message {
-                command: None,
-                args: None,
-                sender: user,
-                raw: raw.to_string(),
-            }));
-        } else {
-            debug!("Message {:?} is command", raw);
-            let mut split = raw.split(' ');
-            let command = split.next().unwrap().split_once(&self.prefix).unwrap().1;
-            let command = &command[..command.len() - 2];
-            let mut args = vec![];
-            while let Some(a) = split.next() {
-                args.push(a.to_string());
-            }
-            ret = Ok(Some(Message {
-                command: Some(command.to_string()),
-                args: if args.is_empty() { None } else { Some(args) },
-                sender: user,
-                raw: raw.to_string(),
-            }));
-        }
-        ret
+        debug!("Message {:?} is command", raw);
+        let mut words = raw.split(' ').map(|w| w.to_string()).collect();
+		Ok(Some(Message {
+	        words,
+            sender: user,
+            raw: raw.to_string(),
+        }))
     }
     pub fn wait_commands(&mut self) -> BotResult<()> {
         let mut msg: Message;
@@ -129,11 +100,6 @@ impl Bot {
                 msg = m;
             } else {
                 continue;
-            }
-            if msg.command.is_some() {
-                if let Some(send) = self.commands.run_command(msg) {
-                    self.client.send_message(&send)?;
-                }
             }
         }
     }
