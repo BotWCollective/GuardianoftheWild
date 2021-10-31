@@ -6,6 +6,7 @@ use crate::{bot::Message, BotError, BotResult};
 use fasthash::{sea::Hash64, RandomState};
 use regex::{Regex, RegexBuilder};
 use std::collections::HashMap;
+use log::{debug, info};
 
 use BotError::Command;
 use CommandError::*;
@@ -26,9 +27,11 @@ impl CommandMap {
     }
     pub fn lookup(&mut self, msg: Message) -> BotResult<Option<String>> {
         if msg.words.is_empty() || msg.raw.is_empty() {
+	        debug!("Message was empty!");
             return Ok(None);
         }
         if self.commands.contains_key(&msg.words[0]) {
+	        info!("{} ran command {}", &msg.sender, &msg.words[0]);
             self.commands.get(&msg.words[0]).unwrap().run(msg.sender)
         } else if msg.words[0] == "!commands" {
             if CommandPerms::max(&msg.sender) >= CommandPerms::Mod && msg.words.len() > 2 {
@@ -36,12 +39,15 @@ impl CommandMap {
                     "add" => Ok(None),
                     "alias" => {
                         if msg.words.len() >= 4 {
+	                        debug!("Aliasing {} to {}", msg.words[2], msg.words[3]);
                             self.alias(
                                 &msg.words[2],
                                 &msg.words[3],
                                 if let Some(w) = msg.words.get(4) {
+	                                debug!("Aliasing as keyword: {}", w == "-k");
                                     w == "-k"
                                 } else {
+	                                debug!("Aliasing as keyword: false");
                                     false
                                 },
                             )
@@ -51,6 +57,7 @@ impl CommandMap {
                     }
                     "del" => {
                         if msg.words.len() >= 3 {
+	                        debug!("Deleting {}", &msg.words[2]);
                             self.delete(&msg.words[2])
                         } else {
                             Err(Command(NotEnoughArgs))
@@ -69,6 +76,7 @@ impl CommandMap {
                 .map(|m| m.as_str().to_string())
                 .collect();
             let keyword = keywords.iter().max().unwrap();
+            debug!("found keyword: {}", keyword);
             if self.keywords.contains_key(keyword) {
                 return self.keywords.get(keyword).unwrap().run(msg.sender);
             }
@@ -133,5 +141,6 @@ impl CommandMap {
         let re_str = format!(r"\b({})\b", joined_keywords);
         let re_build = RegexBuilder::new(&re_str);
         self.keyword_re = re_build.build().unwrap();
+        debug!("Refreshed keyword regex");
     }
 }

@@ -57,7 +57,6 @@ impl Bot {
         r
     }
     fn try_parse_message(&mut self) -> BotResult<Option<Message>> {
-        let ret: BotResult<Option<Message>>;
         let message: String = self.client.get_message()?;
         if message.is_empty()
             || message
@@ -67,6 +66,7 @@ impl Bot {
                     name = self.config.username
                 )
         {
+	        debug!("Message thrown out");
             return Ok(None);
         }
         let mut message = message.split(':');
@@ -83,12 +83,12 @@ impl Bot {
             .ok_or(BotError::MessageParse(
                 "Could not parse username from twitch response".into(),
             ))?;
+        debug!("Got username: {}", sender);
         let raw = message.collect::<Vec<&str>>().join(":");
         let user = User::parse(tags, sender);
-        debug!("Message {:?} is command", raw);
         let mut words = raw.split(' ').map(|w| w.to_string()).collect();
-		Ok(Some(Message {
-	        words,
+        Ok(Some(Message {
+            words,
             sender: user,
             raw: raw.to_string(),
         }))
@@ -97,6 +97,7 @@ impl Bot {
         let mut msg: Message;
         loop {
             if let Some(m) = self.try_parse_message()? {
+	            info!("{}: {}", m.sender, m.raw);
                 msg = m;
             } else {
                 continue;

@@ -6,6 +6,12 @@ pub struct User {
     username: String,
 }
 
+impl std::fmt::Display for User {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "{}", self.username)
+	}
+}
+
 impl User {
     pub fn parse(tags: &str, username: &str) -> User {
         let tags = tags
