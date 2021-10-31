@@ -2,15 +2,12 @@ use crate::user::User;
 use super::CommandError;
 use crate::{BotResult, BotError};
 
-use std::cmp::{Ordering, Ord};
-
-pub trait Runnable {
-	fn run(&self, user: User) -> BotResult<Option<String>>;
-}
+use std::cmp::Ordering;
 
 #[derive(Clone)]
 pub struct Command {
     perms: CommandPerms,
+    trigger: Option<TriggerInfo>,
     action: CommandAction,
     runs: usize,
 }
@@ -82,51 +79,32 @@ impl Command {
     }
 }
 
-impl Runnable for Command {
-	fn run(&self, user: User) -> BotResult<Option<String>> {
-        if self.perms > CommandPerms::max(&user) {
-            return Err(BotError::Command(CommandError::InsufficientPerms));
-        }
-        self.runs += 1;
-        self.action.run()
-	}
-}
-
-pub struct Trigger {
+#[derive(Clone)]
+pub struct TriggerInfo {
 	priority: usize,
-	action: CommandAction,
-	runs: usize
+	// probably more here later
 }
 
-impl Trigger {
-	pub fn new(priority: usize, action: CommandAction) -> Self {
+impl TriggerInfo {
+	pub fn new(priority: usize) -> Self {
 		Self {
 			priority,
-			action,
-			runs: 0
 		}
 	}
 }
 
-impl Runnable for Trigger {
-	fn run(&self, _user: User) -> BotResult<Option<String>> {
-        self.runs += 1;
-        self.action.run()
-	}
-}
-
-impl PartialEq for Trigger {
+impl PartialEq for TriggerInfo {
 	fn eq(&self, other: &Self) -> bool {
 		self.priority == other.priority
 	}
 }
-impl Eq for Trigger {}
-impl PartialOrd for Trigger {
+impl Eq for TriggerInfo {}
+impl PartialOrd for TriggerInfo {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(self.priority.cmp(&other.priority))
 	}
 }
-impl Ord for Trigger {
+impl Ord for TriggerInfo {
 	fn cmp(&self, other: &Self) -> Ordering {
 		self.partial_cmp(other).unwrap()
 	}
