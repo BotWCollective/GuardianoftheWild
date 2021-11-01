@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use std::time::{Instant, Duration};
 use std::str::FromStr;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Command {
 	cooldown: (Instant, Duration),
 	perms: CommandPerms,
@@ -43,7 +43,7 @@ impl FromStr for Command {
 			action: CommandAction::Static{ret: "".into()},
 			runs: 0
 		};
-		let mut action = if s.contains("${") {1} else {2};
+		let mut action = if s.contains("${") {1} else {0};
 		let mut split = s.split(' ');
 		while let Some(w) = split.next() {
 			if !w.starts_with('-') {
@@ -77,7 +77,7 @@ impl FromStr for Command {
 			}
 		}
 		let command_name = split.next().unwrap_or("no");
-		let resp = split.collect();
+		let resp = split.skip(1).collect();
 		if action == 0 {
 			r.action = CommandAction::Static {ret: resp};
 		} else if action == 1 {
@@ -90,7 +90,7 @@ impl FromStr for Command {
 }
 
 
-#[derive(PartialEq, Eq, PartialOrd, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug)]
 pub enum CommandPerms {
     Anyone,
     Vip,
@@ -122,7 +122,7 @@ impl CommandPerms {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CommandAction {
     Static { ret: String },
     Template { template: String },
@@ -140,18 +140,10 @@ impl CommandAction {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TriggerInfo {
 	priority: usize,
 	// probably more here later
-}
-
-impl TriggerInfo {
-	pub fn new(priority: usize) -> Self {
-		Self {
-			priority,
-		}
-	}
 }
 
 impl PartialEq for TriggerInfo {
