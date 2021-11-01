@@ -3,14 +3,76 @@ use super::CommandError;
 use crate::{BotResult, BotError};
 
 use std::cmp::Ordering;
+use std::time::{Instant, Duration};
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct Command {
-    perms: CommandPerms,
+	cooldown: (Instant, Duration),
+	perms: CommandPerms,
+	case: bool,
     trigger: Option<TriggerInfo>,
     action: CommandAction,
     runs: usize,
 }
+
+impl FromStr for Command {
+	type Err = ();
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		let mut r = Self {
+			cooldown: (Instant::now() - Duration::from_millis(10000000), Duration::ZERO),
+			case: true,
+			trigger: None,
+			perms: CommandPerms::Anyone,
+			action: CommandAction::Static{ret: "".into()},
+			runs: 0
+		};
+		let mut action = if s.contains("${") {1} else {2};
+		let mut split = s.split(' ');
+		while let Some(w) = split.next() {
+			if !w.starts_with('-') {
+				break;
+			}
+			match w.to_ascii_lowercase().as_str() {
+				"cs=true" => r.case = true,
+				"cs=false" => r.case = false,
+				"p=mod" => r.perms = CommandPerms::Mod,
+				"p=anyone" => r.perms = CommandPerms::Anyone,
+				"p=vip" => r.perms = CommandPerms::Vip,
+				"p=broadcaster" => r.perms = CommandPerms::Broadcaster,
+				"t=static" => action = 0,
+				"t=sub" => action = 1,
+				"t=js" => action = 2,
+				s => {
+					if s.starts_with("cd=") {
+						if let Some((_, b)) = s.split_once('=') {
+							if let Ok(n) = b.parse::<u64>() {
+								r.cooldown.1 = Duration::from_millis(n);
+							}
+						}
+					} else if s.starts_with("k=") {
+						if let Some((_, b)) = s.split_once('=') {
+							if let Ok(n) = b.parse::<usize>() {
+								r.trigger = Some(TriggerInfo {priority: n});
+							}
+						}
+					}
+				}
+			}
+		}
+		let command_name = split.next().ok_or(())?;
+		let resp = split.collect();
+		if action == 0 {
+			r.action = CommandAction::Static {ret: resp};
+		} else if action == 1 {
+			r.action = CommandAction::Template {template: resp};
+		} else {
+			r.action = CommandAction::Script {command: "node".into(), file: format!("./commands/{}.js", command_name)}
+		}
+		Ok(r)
+	}
+}
+
 
 #[derive(PartialEq, Eq, PartialOrd, Clone)]
 pub enum CommandPerms {
@@ -63,13 +125,6 @@ impl CommandAction {
 }
 
 impl Command {
-    pub fn new(perms: CommandPerms, action: CommandAction) -> Self {
-        Self {
-            perms,
-            action,
-            runs: 0,
-        }
-    }
     pub fn run(&mut self, user: User) -> BotResult<Option<String>> {
         if self.perms > CommandPerms::max(&user) {
             return Err(BotError::Command(CommandError::InsufficientPerms));
