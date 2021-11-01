@@ -5,7 +5,6 @@ use std::fmt;
 
 pub struct Bot {
     client: TwitchIrcClient,
-    prefix: String,
     commands: CommandMap,
     config: BotConfig,
 }
@@ -14,7 +13,6 @@ pub struct BotConfig {
     channel: String,
     username: String,
     password: String,
-    prefix: String,
 }
 
 impl BotConfig {
@@ -23,7 +21,6 @@ impl BotConfig {
             username: env::var("GOTW_NICK")?,
             password: env::var("GOTW_PASS")?,
             channel: env::var("GOTW_CHAN")?,
-            prefix: env::var("GOTW_PREF")?,
         })
     }
 }
@@ -49,7 +46,6 @@ impl Bot {
                 cfg.password.clone(),
                 cfg.channel.clone(),
             )?,
-            prefix: cfg.prefix.clone(),
             commands: CommandMap::new(),
             config: cfg,
         });
@@ -94,7 +90,6 @@ impl Bot {
         }))
     }
     pub fn wait_commands(&mut self) -> BotResult<()> {
-        let mut msg: Message;
         loop {
             if let Some(m) = self.try_parse_message()? {
 	            info!("{}: {}", m.sender, m.raw);
@@ -104,11 +99,12 @@ impl Bot {
 					Err(Command(CommandError::NotEnoughArgs)) => {self.client.send_message("Not enough arguments!")?;},
 					Err(Command(CommandError::AlreadyRegistered)) => {self.client.send_message("Command already exists!")?;}
 					Err(Command(CommandError::NotRegistered)) => {self.client.send_message("Command does not exist!")?;}
-					Ok(Some(m)) => {self.client.send_message(&m)?;},
+					Ok(Some(m)) => {
+						info!("sent: {}", m);
+						self.client.send_message(&m)?;
+					},
 					_ => {}
 	            }
-            } else {
-                continue;
             }
         }
     }
