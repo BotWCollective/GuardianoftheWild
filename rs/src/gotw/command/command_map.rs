@@ -6,6 +6,7 @@ use crate::{bot::Message, BotError, BotResult};
 use fasthash::{sea::Hash64, RandomState};
 use regex::{Regex, RegexBuilder};
 use std::collections::HashMap;
+use std::str::FromStr;
 use log::{debug, info};
 
 use BotError::Command;
@@ -32,11 +33,29 @@ impl CommandMap {
         }
         if self.commands.contains_key(&msg.words[0]) {
 	        info!("{} ran command {}", &msg.sender, &msg.words[0]);
-            self.commands.get(&msg.words[0]).unwrap().run(msg.sender)
+            self.commands.get_mut(&msg.words[0]).unwrap().run(msg.sender)
         } else if msg.words[0] == "!commands" {
             if CommandPerms::max(&msg.sender) >= CommandPerms::Mod && msg.words.len() > 2 {
                 match msg.words[1].as_str() {
-                    "add" => Ok(None),
+                    "add" => {
+						if msg.words.len() >= 4 {
+							let cmd = Cmd::from_str(&msg.raw).expect("this shouldnt fail");
+							let name = msg.raw.split_ascii_whitespace().skip(2).skip_while(|w| w.starts_with('-')).next().unwrap_or("").to_string();
+							let add_to = if cmd.trigger() {&mut self.keywords} else {&mut self.commands};
+							if (cmd.case_sensitive() && add_to.contains_key(&name)) || add_to.contains_key(&name.to_ascii_lowercase()) {
+								Err(Command(AlreadyRegistered))
+							} else {
+								if cmd.case_sensitive() {
+									add_to.insert(name.clone(), cmd);
+								} else {
+									add_to.insert(name.to_ascii_lowercase(), cmd);
+								}
+								Ok(Some(format!("Command {} successfully added", name)))
+							}
+						} else {
+							Err(Command(NotEnoughArgs))
+						}
+                    },
                     "alias" => {
                         if msg.words.len() >= 4 {
 	                        debug!("Aliasing {} to {}", msg.words[2], msg.words[3]);
@@ -78,7 +97,7 @@ impl CommandMap {
             let keyword = keywords.iter().max().unwrap();
             debug!("found keyword: {}", keyword);
             if self.keywords.contains_key(keyword) {
-                return self.keywords.get(keyword).unwrap().run(msg.sender);
+                return self.keywords.get_mut(keyword).unwrap().run(msg.sender);
             }
             Ok(None)
         }
