@@ -53,7 +53,7 @@ impl Bot {
         r
     }
     fn try_parse_message(&mut self) -> BotResult<Option<Message>> {
-        let message: String = self.client.get_message()?;
+        let message = self.client.get_message()?;
         if message.is_empty()
             || message
                 == format!(
@@ -65,6 +65,7 @@ impl Bot {
 	        debug!("Message thrown out");
             return Ok(None);
         }
+        let message = message.trim_end_matches("\r\n");
         let mut message = message.split(':');
         let tags = message.next().ok_or(BotError::MessageParse(
             "Could not get tags from twitch resonse".into(),
@@ -90,11 +91,11 @@ impl Bot {
         }))
     }
     pub fn wait_commands(&mut self) -> BotResult<()> {
+        use BotError::Command;
         loop {
             if let Some(m) = self.try_parse_message()? {
 	            info!("{}: {}", m.sender, m.raw);
 	            let res = self.commands.lookup(m);
-	            use BotError::Command;
 	            match res {
 					Err(Command(CommandError::NotEnoughArgs)) => {self.client.send_message("Not enough arguments!")?;},
 					Err(Command(CommandError::AlreadyRegistered)) => {self.client.send_message("Command already exists!")?;}
