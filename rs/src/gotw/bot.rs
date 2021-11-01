@@ -1,4 +1,4 @@
-use crate::{command::CommandMap, BotError, BotResult, TwitchIrcClient, User};
+use crate::{command::{CommandMap, CommandError}, BotError, BotResult, TwitchIrcClient, User};
 use log::{debug, info};
 use std::env;
 use std::fmt;
@@ -86,7 +86,7 @@ impl Bot {
         debug!("Got username: {}", sender);
         let raw = message.collect::<Vec<&str>>().join(":");
         let user = User::parse(tags, sender);
-        let mut words = raw.split(' ').map(|w| w.to_string()).collect();
+        let words = raw.split(' ').map(|w| w.to_string()).collect();
         Ok(Some(Message {
             words,
             sender: user,
@@ -98,7 +98,15 @@ impl Bot {
         loop {
             if let Some(m) = self.try_parse_message()? {
 	            info!("{}: {}", m.sender, m.raw);
-                msg = m;
+	            let res = self.commands.lookup(m);
+	            use BotError::Command;
+	            match res {
+					Err(Command(CommandError::NotEnoughArgs)) => {self.client.send_message("Not enough arguments!")?;},
+					Err(Command(CommandError::AlreadyRegistered)) => {self.client.send_message("Command already exists!")?;}
+					Err(Command(CommandError::NotRegistered)) => {self.client.send_message("Command does not exist!")?;}
+					Ok(Some(m)) => {self.client.send_message(&m)?;},
+					_ => {}
+	            }
             } else {
                 continue;
             }
