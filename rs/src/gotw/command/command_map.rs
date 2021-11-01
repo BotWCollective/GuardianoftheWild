@@ -97,9 +97,10 @@ impl CommandMap {
             let keyword = keywords.iter().max().unwrap();
             debug!("found keyword: {}", keyword);
             if self.keywords.contains_key(keyword) {
-                return self.keywords.get_mut(keyword).unwrap().run(msg.sender);
+                self.keywords.get_mut(keyword).unwrap().run(msg.sender)
+            } else {
+				Err(Command(NotFound))
             }
-            Ok(None)
         }
     }
     fn alias(
@@ -137,7 +138,7 @@ impl CommandMap {
             }
             Ok(Some(format!("{} aliased to {}", target, alias)))
         } else {
-            Err(Command(NotFound))
+            Err(Command(NotRegistered))
         }
     }
     fn delete(&mut self, target: &str) -> BotResult<Option<String>> {
@@ -147,7 +148,7 @@ impl CommandMap {
             self.refresh_keywords();
             Ok(Some(format!("Keyword {} removed", target)))
         } else {
-            Err(Command(NotFound))
+            Err(Command(NotRegistered))
         }
     }
     fn refresh_keywords(&mut self) {
