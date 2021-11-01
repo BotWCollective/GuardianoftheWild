@@ -47,13 +47,5 @@ fn main() {
         error!("{}", e);
         exit(1)
     });
-    loop {
-        let msg = bot.try_parse_message().unwrap_or_else(|e| {
-            error!("{}", e);
-            None
-        });
-        if let Some(m) = msg {
-            info!("{}", m);
-        }
-    }
+    bot.wait_commands().unwrap();
 }
