@@ -16,8 +16,24 @@ pub struct Command {
     runs: usize,
 }
 
+impl Command {
+    pub fn run(&mut self, user: User) -> BotResult<Option<String>> {
+        if self.perms > CommandPerms::max(&user) {
+            return Err(BotError::Command(CommandError::InsufficientPerms));
+        }
+        self.runs += 1;
+        self.action.run()
+    }
+    pub fn case_sensitive(&self) -> bool {
+		self.case
+    }
+    pub fn trigger(&self) -> bool {
+		self.trigger.is_some()
+    }
+}
+
 impl FromStr for Command {
-	type Err = ();
+	type Err = std::convert::Infallible;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let mut r = Self {
 			cooldown: (Instant::now() - Duration::from_millis(10000000), Duration::ZERO),
@@ -60,7 +76,7 @@ impl FromStr for Command {
 				}
 			}
 		}
-		let command_name = split.next().ok_or(())?;
+		let command_name = split.next().unwrap_or("no");
 		let resp = split.collect();
 		if action == 0 {
 			r.action = CommandAction::Static {ret: resp};
@@ -122,16 +138,6 @@ impl CommandAction {
         }
 
 	}
-}
-
-impl Command {
-    pub fn run(&mut self, user: User) -> BotResult<Option<String>> {
-        if self.perms > CommandPerms::max(&user) {
-            return Err(BotError::Command(CommandError::InsufficientPerms));
-        }
-        self.runs += 1;
-        self.action.run()
-    }
 }
 
 #[derive(Clone)]
