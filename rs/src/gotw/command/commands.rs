@@ -5,6 +5,7 @@ use crate::{BotResult, BotError};
 use std::cmp::Ordering;
 use std::time::{Instant, Duration};
 use std::str::FromStr;
+use log::debug;
 
 #[derive(Clone, Debug)]
 pub struct Command {
@@ -44,31 +45,34 @@ impl FromStr for Command {
 			runs: 0
 		};
 		let mut action = if s.contains("${") {1} else {0};
-		let mut split = s.split(' ');
+		let mut split = s.split(' ').skip(2);
+		let mut command_name = "".into();
 		while let Some(w) = split.next() {
 			if !w.starts_with('-') {
+				command_name = w;
 				break;
 			}
 			match w.to_ascii_lowercase().as_str() {
-				"cs=true" => r.case = true,
-				"cs=false" => r.case = false,
-				"p=mod" => r.perms = CommandPerms::Mod,
-				"p=anyone" => r.perms = CommandPerms::Anyone,
-				"p=vip" => r.perms = CommandPerms::Vip,
-				"p=broadcaster" => r.perms = CommandPerms::Broadcaster,
-				"t=static" => action = 0,
-				"t=sub" => action = 1,
-				"t=js" => action = 2,
+				"-cs=true" => r.case = true,
+				"-cs=false" => r.case = false,
+				"-p=mod" => r.perms = CommandPerms::Mod,
+				"-p=anyone" => r.perms = CommandPerms::Anyone,
+				"-p=vip" => r.perms = CommandPerms::Vip,
+				"-p=broadcaster" => r.perms = CommandPerms::Broadcaster,
+				"-t=static" => action = 0,
+				"-t=sub" => action = 1,
+				"-t=js" => action = 2,
 				s => {
-					if s.starts_with("cd=") {
+					if s.starts_with("-cd=") {
 						if let Some((_, b)) = s.split_once('=') {
 							if let Ok(n) = b.parse::<u64>() {
 								r.cooldown.1 = Duration::from_millis(n);
 							}
 						}
-					} else if s.starts_with("k=") {
+					} else if s.starts_with("-k=") {
 						if let Some((_, b)) = s.split_once('=') {
 							if let Ok(n) = b.parse::<usize>() {
+								debug!("setting trigger priority to {}", n);
 								r.trigger = Some(TriggerInfo {priority: n});
 							}
 						}
@@ -76,8 +80,7 @@ impl FromStr for Command {
 				}
 			}
 		}
-		let command_name = split.next().unwrap_or("no");
-		let resp = split.skip(1).collect();
+		let resp = split.collect();
 		if action == 0 {
 			r.action = CommandAction::Static {ret: resp};
 		} else if action == 1 {
