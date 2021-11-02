@@ -34,6 +34,7 @@ impl CommandMap {
         let first = &msg.words[0];
         debug!("{:?}", first);
         debug!("{:?}", self.commands);
+        debug!("{:?}", self.keywords);
         if self.commands.contains_key(first) {
             info!("{} ran command {}", &msg.sender, first);
             self.commands.get_mut(first).unwrap().run(msg.sender)
@@ -119,13 +120,17 @@ impl CommandMap {
                 .find_iter(&msg.raw)
                 .map(|m| m.as_str().to_string())
                 .collect();
-            let keyword = keywords.iter().max().unwrap();
-            debug!("found keyword: {}", keyword);
-            if self.keywords.contains_key(keyword) {
-	            info!("{} said keyword {}", msg.sender, keyword);
-                self.keywords.get_mut(keyword).unwrap().run(msg.sender)
+            let keyword = keywords.iter().max();
+            if let Some(k) = keyword {
+	            debug!("found keyword: {}", k);
+	            if self.keywords.contains_key(k) {
+		            info!("{} said keyword {}", msg.sender, k);
+	                self.keywords.get_mut(k).unwrap().run(msg.sender)
+	            } else {
+	                Ok(None)
+	            }
             } else {
-                Err(Command(NotFound))
+				Ok(None)
             }
         }
     }
