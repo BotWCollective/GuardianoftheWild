@@ -1,7 +1,7 @@
 use env_logger::{fmt::Color, WriteStyle};
 use env_logger::{Builder, Env};
 use gotw::{Bot, BotConfig};
-use log::{error, info, Level};
+use log::{error, Level};
 use std::io::Write;
 use std::process::exit;
 
