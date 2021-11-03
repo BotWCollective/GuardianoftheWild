@@ -76,7 +76,7 @@ impl CommandMap {
                                 if trigger {
 		                            self.refresh_keywords();
                                 }
-                                Ok(Some(format!("Command {} successfully added", name)))
+                                Ok(Some(format!("{} {} successfully added", if trigger {"Keyword"} else {"Command"}, name)))
                             }
                         } else {
                             Err(Command(NotEnoughArgs))
@@ -122,12 +122,16 @@ impl CommandMap {
                 .collect();
             let keyword = keywords.iter().max();
             if let Some(k) = keyword {
-	            debug!("found keyword: {}", k);
-	            if self.keywords.contains_key(k) {
-		            info!("{} said keyword {}", msg.sender, k);
-	                self.keywords.get_mut(k).unwrap().run(msg.sender)
+	            if k != "" {
+		            debug!("found keyword: {}", k);
+		            if self.keywords.contains_key(k) {
+			            info!("{} said keyword {}", msg.sender, k);
+		                self.keywords.get_mut(k).unwrap().run(msg.sender, msg.words)
+		            } else {
+		                Ok(None)
+		            }
 	            } else {
-	                Ok(None)
+					Ok(None)
 	            }
             } else {
 				Ok(None)
