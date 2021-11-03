@@ -37,7 +37,7 @@ impl CommandMap {
         debug!("{:?}", self.keywords);
         if self.commands.contains_key(first) {
             info!("{} ran command {}", &msg.sender, first);
-            self.commands.get_mut(first).unwrap().run(msg.sender)
+            self.commands.get_mut(first).unwrap().run(msg.sender, msg.words[1..].to_owned())
         } else if first == "!commands" {
             if CommandPerms::max(&msg.sender) >= CommandPerms::Mod && msg.words.len() > 2 {
                 match msg.words[1].as_str() {
