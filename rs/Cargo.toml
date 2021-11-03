@@ -1,7 +1,7 @@
 [package]
 name = "guardianofthewild"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "gotw"
@@ -27,3 +27,12 @@ version = "0.9"
 [dependencies.log]
 version = "0.4"
 features = ["std"]
+
+[dependencies.fasthash]
+version = "0.4"
+git = "https://github.com/flier/rust-fasthash"
+default-features = false
+features = ["native", "seahash"]
+
+[dependencies.regex]
+version = "1.5"

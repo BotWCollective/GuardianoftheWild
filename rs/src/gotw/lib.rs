@@ -1,7 +1,8 @@
 mod bot;
+mod command;
 mod irc;
 mod user;
-mod commands;
+mod format;
 pub use bot::{Bot, BotConfig};
 pub(crate) use irc::TwitchIrcClient;
 pub(crate) use user::User;
@@ -15,6 +16,7 @@ pub enum BotError {
     MissingEnvironment(std::env::VarError),
     Ws(tungstenite::error::Error),
     MessageParse(String),
+    Command(command::CommandError),
 }
 impl From<std::env::VarError> for BotError {
     fn from(e: std::env::VarError) -> Self {
@@ -39,6 +41,7 @@ impl fmt::Display for BotError {
             Self::MissingEnvironment(e) => e.to_string(),
             Self::Ws(e) => e.to_string(),
             Self::MessageParse(e) => e.to_string(),
+            Self::Command(e) => format!("{:?}", e),
         };
         write!(f, "{}", s)
     }

@@ -1,7 +1,7 @@
 use env_logger::{fmt::Color, WriteStyle};
 use env_logger::{Builder, Env};
 use gotw::{Bot, BotConfig};
-use log::{error, info, Level};
+use log::{error, Level};
 use std::io::Write;
 use std::process::exit;
 
@@ -47,13 +47,5 @@ fn main() {
         error!("{}", e);
         exit(1)
     });
-    loop {
-        let msg = bot.try_parse_message().unwrap_or_else(|e| {
-            error!("{}", e);
-            None
-        });
-        if let Some(m) = msg {
-            info!("{}", m);
-        }
-    }
+    bot.wait_commands().unwrap();
 }
