@@ -1,6 +1,7 @@
-use crate::user::User;
+use crate::User;
 use super::CommandError;
 use crate::{BotResult, BotError};
+use crate::format::{format, FormatArgs};
 
 use std::cmp::Ordering;
 use std::time::{Instant, Duration};
@@ -18,12 +19,13 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn run(&mut self, user: User) -> BotResult<Option<String>> {
+    pub fn run(&mut self, user: User, args: Vec<String>) -> BotResult<Option<String>> {
         if self.perms > CommandPerms::max(&user) {
             return Err(BotError::Command(CommandError::InsufficientPerms));
         }
         self.runs += 1;
-        self.action.run()
+        let args = FormatArgs::new(self.runs, user.username(), args);
+        self.action.run(args)
     }
     pub fn case_sensitive(&self) -> bool {
 		self.case
@@ -80,7 +82,7 @@ impl FromStr for Command {
 				}
 			}
 		}
-		let resp = split.collect();
+		let resp = split.fold(String::new(), |mut a, b| {a.push_str(b); a.push(' '); a});
 		if action == 0 {
 			r.action = CommandAction::Static {ret: resp};
 		} else if action == 1 {
@@ -133,9 +135,10 @@ pub enum CommandAction {
 }
 
 impl CommandAction {
-	fn run(&self) -> BotResult<Option<String>> {
+	fn run(&self, args: FormatArgs) -> BotResult<Option<String>> {
         match &self {
             CommandAction::Static { ret } => Ok(Some(ret.into())),
+            CommandAction::Template { template } => {format(template, args).map(|r| Some(r))},
             // do something eventually
             _ => Ok(Some("".into())),
         }
