@@ -2,6 +2,7 @@ mod bot;
 mod command;
 mod irc;
 mod user;
+mod format;
 pub use bot::{Bot, BotConfig};
 pub(crate) use irc::TwitchIrcClient;
 pub(crate) use user::User;
