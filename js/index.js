@@ -136,7 +136,8 @@ const SUBPREFIXES = [ //to prevent Subscriber emotes from appearing in !slots
     "vladis17",
     "taoplu",
     "hylian56",
-    "lieute32"
+    "lieute32",
+    "botwco"
 ];
 
 
