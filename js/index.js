@@ -5,6 +5,22 @@
 
 let e = require("events");
 let fs = require("fs"); 
+let WS = require("ws");
+const auth = require("./auth.json");
+
+const UsernameExceptions = { //Twitch/Discord syncing for those whos names do not match
+    "354602994911674368": "taoplusplus",
+    "327879060443234314": "komali09",
+    "312830913912242176": "powergaymerkai",
+    "706242928363700294": "takosensei101",
+    "448790275372875789": "epicsgeiler",
+    //People who don't commentate but are still active
+    "659901334266576926": "cinnnamon_",
+    "772287021107511307": "p3ngu1nc4t",
+    "247204362273816576": "the_bromie",
+    "298527618871984138": "surprisedpika_"
+
+}
 
 let CurrencySystem = class {
     constructor() {
@@ -21,6 +37,13 @@ let CurrencySystem = class {
     }
     _loadjson() {
         this.dat = JSON.parse(fs.readFileSync("./currency.json").toString());
+        for(let i in Object.keys(this.dat)) {
+            if(!this.dat[Object.keys(this.dat)[i]].sm) {
+                if(isNaN(Object.keys(this.dat)[i])) this.dat[Object.keys(this.dat)[i]].sm = "twitch";
+                else this.dat[Object.keys(this.dat)[i]].sm = "discord"
+            }
+        }
+        this._writejson();
     }
     _writejson() {
         fs.writeFileSync("./currency.json", JSON.stringify(this.dat));
@@ -41,13 +64,13 @@ let CurrencySystem = class {
         for(_i in Object.keys(this.dat)) { 
             let i = Object.keys(this.dat)[_i];
             console.log(this.dat[i].sm)
-            outObj[this.dat[i].sm].push((()=>{let _={};_[i]=this.dat[i].value;return _})()); // that was fun :D
+            if(outObj[this.dat[i].sm]) outObj[this.dat[i].sm].push((()=>{let _={};_[i]=this.dat[i].value;return _})()); // that was fun :D
         }
         this._writejson();
         return outObj;
     }
     getRupee(n, d=false) {
-        if(d) return " Rupees";
+        if(d) return " Rupee" + n == 1 ? "" : "s";
         let green = "<:rupee:899771488792608789>";
         let blue = "<:rupee5:899770964529807430>";
         let red = "<:rupee20:899770964454289468>";
@@ -103,7 +126,7 @@ let Timeouts = class {
         return false;
     }
 }
-class MessageCounter {
+let MessageCounter = class {
     constructor(value,tm,cb) {
         this.cb = cb
         this.v = value
@@ -120,6 +143,74 @@ class MessageCounter {
         }       
     }
 }
+let BingoBongo = class extends e {
+    constructor() {
+        super(); // Since when can you just call the function :0
+        this.room = "";
+        this.alert = new e;
+        this.ws = null;//new WS;
+        this.pwd = "";
+    }
+    set(t,p,b="", c) {
+        this.room = t;
+        this.pwd = p;
+        this.update(b, s=>{
+            c(s);
+        })
+    }
+    delete() {
+        if(this.ws) this.ws.close();
+        this.ws = null;
+    }
+    update(b,c) {
+        if(this.ws) this.ws.close();
+        let URL = 'https://bingosync.bingothon.com'; 
+        let WSS = "wss://bingosock.bingothon.com/broadcast"
+        if(b=="default") {
+            URL = 'https://bingosync.com';
+            WSS = "wss://sockets.bingosync.com/broadcast"   
+        }
+        fetch(URL + "/api/join-room", {
+            method: "POST",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                room: this.room,
+                nickname: "GuardianoftheWild",
+                password: this.pwd
+            })
+        }).then(x=>x.json()).then(res=>{
+            if(res.__all__) {
+                for(let i in res.__all__) if(Object.keys(res.__all__[i]).includes("Incorrect Password")) return c("Incorrect Password");
+            }
+            if(!res.socket_key) return c("No socket key obtained, try checking the command again");
+            let key = res.socket_key;
+            this.ws = new WS(WSS);
+            this.ws.on("open", _=>{
+                this.ws.send(`{"socket_key": "${key}"}`);
+                c(`Connected to \`${WSS}\` (Room \`${this.room}\`)`);
+            })
+            this.ws.on("message", message => {
+                message = JSON.parse(message.toString());
+                if(message.type == "goal") {
+                    this.emit("msg", `${message.player.name} has ${message.remove?"un":""}marked "${message.square.name}"`);
+                }
+                if(message.type == "chat") {
+                    this.emit("msg", `${message.player.name}: "${message.text}"`);
+                }
+                if(message.type == "connection") {
+                    this.emit("msg", `${message.player.name} has joined!`);
+                }
+            })
+        }).catch(x=>{
+            console.log(x);
+            c("Something went wrong....");
+        })
+    }
+}
+
 
 const SUBPREFIXES = [ //to prevent Subscriber emotes from appearing in !slots 
     "angryd18",
@@ -137,7 +228,8 @@ const SUBPREFIXES = [ //to prevent Subscriber emotes from appearing in !slots
     "taoplu",
     "hylian56",
     "lieute32",
-    "botwco"
+    "botwco",
+    "rosie0"
 ];
 
 
@@ -146,9 +238,10 @@ let twitchemotes = require("./emotes.json"); // taken from another project; the 
 const default_colors = ["#FF0000", "#0000FF", "#00FF00", "#B22222", "#FF7F50", "#9ACD32", "#FF4500", "#2E8B57", "#DAA520", "#D2691E", "#5F9EA0", "#1E90FF", "#FF69B4", "#8A2BE2", "#00FF7F"];
 const discord = require("discord.js");
 const tmi = require("tmi.js");
-const fetch = require("node-fetch");
+const fetch = require("fetch-cookie/node-fetch")(require("node-fetch"));
 
 const bot = new e;
+const Bingo = new BingoBongo;
 let t = new Timeouts();
 let cst = new Timeouts();
 let gst = new Timeouts();
@@ -157,25 +250,33 @@ cs.init();
 const tmi_client = new tmi.client({
     identity: {
         username: "GuardianOfTheWild",
-        password: require("./auth.json").token
+        password: auth.token
     },
     channels: [
         "botwcollective"
     ]
 });
 tmi_client.connect();
-let counter = new MessageCounter(100, 900000, ()=>tmi_client.say("botwcollective", "Having fun? Don't forget to clip to help out the highlight videos!"));
+let counter = new MessageCounter(100, 300000, ()=>tmi_client.say("botwcollective", "Having fun? Don't forget to clip to help out the highlight videos!"));
 const djs_client = new discord.Client({ws: {Intents: discord.Intents.ALL}});
 tmi_client.on("connected", () => {
     console.log("On! (twitch)");
 });
-djs_client.login(require("./auth.json").dtoken)
+djs_client.login(auth.dtoken)
 djs_client.on("ready", () => {
     console.log("On! (discord)");
     djs_client.user.setActivity("Breath of the Wild")
 })
 
+// BINGO SETUP ====================================
 
+
+Bingo.on("msg", message =>{
+    tmi_client.say("botwcollective", "[Bingosync] " + message);
+})
+
+
+// END BINGO SETUP ================================
 
 
 tmi_client.on("message",  (channel, user, _message, self) => {
@@ -195,6 +296,7 @@ djs_client.on("message", message => {
     message.discord = true
     message.twitch = false;
     message.user = message.author
+    message.user.mod = message.member?message.member.roles.cache.has("855458975989891122") || message.member.roles.cache.has("793207014690914325"):!1; //Specific to this server
     message.user["display-name"] = message.author.username;
     message.user.identification = message.user.id;
     bot.emit("message", message)
@@ -240,6 +342,70 @@ bot.on("message", message => {
             message.user.color = default_colors[n % default_colors.length];
         }
     }
+    if (message.discord && message.content.includes("<@!897875834805817394>")) {
+        fetch(`https://discord.com/api/v8/channels/${message.channel.id}/messages`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bot ${auth.dtoken}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "content": "_\\*Fires a laser in your general direction\\*_",
+                "message_reference": {
+                    "message_id": message.id.toString(),
+                    "guild_id": message.guild.id
+                }
+            })
+      })
+    }
+    if(args[0] == "!bingo") {
+        let b = "";
+        if(!message.user.mod) return reply("You must be a moderator to run this!");
+        if(args[1] == "remove" || args[1] == "rm") {
+            Bingo.delete();
+            return reply("Disconnected WebSocket!")
+        }
+        if(args[3] == "default") {
+            b = "default";
+            args.pop();
+        }
+        
+        if(args.length != 3) return reply("Syntax: `!bingo {room} {password} {default (optional)}`");
+        Bingo.set(args[1].trim(), args[2].trim(), b, out => {
+            return reply(out);
+        })
+
+    }
+    if(args[0] == "!give") {
+        let current = cs.get(message.user.identification);
+        if(current <= 0) return reply("Get some " + cs.getRupee(1,message.twitch) + " first!")
+        if(args.length!=3) return reply("Syntax: `!give {user} {amount}`");
+        if(args[2].toLowerCase() == "all") args[2] = current;
+        if(isNaN(args[2])) return reply("Argument 1 is not a number!");
+        
+        args[2] = parseInt(args[2]);
+        if(current < args[2]) return reply("You do not have " + args[2] + cs.getRupee(args[2],message.twitch));
+        if(args[2] < 1 || isNaN(args[2])) return reply(`That's not how giving works!`);
+        user_lookup(args[1], u=>{
+            if(!u) return reply("This user cannot be found!");
+            if(message.discord) {
+                message.guild.members.fetch().then(users=>{
+                    for(let user of users) {
+                        if(user[1].user.username == u) {
+                            cs.change(message.user.identification, args[2]*-1, "discord");
+                            cs.change(user[1].user.id, args[2], "discord");
+                            return reply(`Gave ${args[2]}${cs.getRupee(args[2],message.twitch)} rupees to <@${user[1].user.id}>`);
+                        }
+                    }
+                })
+            }
+            if(message.twitch) {
+                cs.change(message.user.identification, args[2]*-1, "twitch");
+                cs.change(u, args[2], "twitch");
+                return reply(`Gave ${args[2]}${cs.getRupee(args[2],message.twitch)} rupees to <@${u}>`);
+            }
+        })
+    }
     if(args[0] == "!gamble") {
         if(gst.check(message.user.identification, 600000)) {
             let current = cs.get(message.user.identification);
@@ -252,13 +418,13 @@ bot.on("message", message => {
             if(current < args[1]) return reply("You do not have " + args[1] + cs.getRupee(args[1],message.twitch));
             if(args[1] < 1 || isNaN(args[1])) return reply(`No, you can't bet ${args[1] + cs.getRupee(args[1],message.twitch)}. Nice Try.`);
 
-            if(Math.random()>0.5) {
-                cst.set(message.user.identification);
-                cs.change(message.user.identification, args[1]*-1, message.discord ? "discord" : "twitch") 
+            if(new Date%2<1) {
+                gst.set(message.user.identification);
+                cs.change(message.user.identification, args[1]*-1, message.discord ? "discord" : "twitch"); 
                 reply(`You lost ${args[1]}${cs.getRupee(args[1],message.twitch)}. You now have ${cs.get(message.user.identification)}${cs.getRupee(cs.get(message.user.identification),message.twitch)}`);
             }
             else {
-                cst.set(message.user.identification);
+                gst.set(message.user.identification);
                 cs.change(message.user.identification, args[1], message.discord ? "discord" : "twitch") 
                 reply(`You won ${args[1]}${cs.getRupee(args[1],message.twitch)}. You now have ${cs.get(message.user.identification)}${cs.getRupee(cs.get(message.user.identification),message.twitch)}`);
             }
@@ -286,6 +452,12 @@ bot.on("message", message => {
     args[0] = args[0].toLowerCase();
     if (args[0] == "!discord") {
         reply("Join the discord server! discord.gg/hylian");
+    }
+    if (args[0] == "!music" || args[0] == "!musiccredits") {
+        reply("The music on our stream was made by direct.me/nintnt (an Ambient Guitar/Synth VGM cover artist) who kindly allowed us music use for these events! Follow and support em or else ٩(＾◡＾)۶");
+    }
+    if(args[0] == "!hbc") {
+        reply("Information for the Hyrule Bike Challenge can be found at https://komali.dev/hbc and https://speedrun.com/botw_extension/Hyrule_Bike_Challenge")
     }
     if (args[0] == "!yt" || args[0] == "!youtube") {
         reply("Subscribe to our Youtube channel! https://www.youtube.com/channel/UC7C948AM_7cNIORd22Rr_SQ");
@@ -411,6 +583,43 @@ bot.on("message", message => {
     if(args[0] == "!test") {
        //nothing here atm
     }
+    if(args[0] == "!so") {
+        if(!args[1]) return reply("You need to specify someone!");
+        if(message.discord) {
+            user_lookup(args[1], u=>{
+                if(!u) return reply("That user does not exist!");
+                return reply(`Thanks for the support! ${u} is a friend of the botwco, sacrifice a new tab and follow em!`);
+            })
+        }
+        if(message.twitch) {
+            fetch(`https://id.twitch.tv/oauth2/token?client_id=${auth.clid}&client_secret=${auth.cls}&grant_type=client_credentials`, {method: 'POST'})
+            .then(res => res.json())
+            .then(res => {
+                var token = res.access_token;
+                fetch("https://api.twitch.tv/helix/users?login="+args[1], {
+                    headers: {
+                        'Accept': "application/vnd.twitchtv.v5 + json",
+                        'Client-ID': auth.clid,
+                        'Authorization': 'Bearer ' + token,
+                    }
+                }).then(x=>x.json()).then(x=>{
+                    if(x.data.length < 1) {
+                        return reply("That user does not exist!");
+                    }
+                    let uuid = x.data[0].id;
+                    fetch("https://api.twitch.tv/kraken/channels/"+uuid, {
+                        headers: {
+                            'Accept': "application/vnd.twitchtv.v5 + json",
+                            'Client-ID': auth.clid,
+                            'Authorization': 'Bearer ' + token,
+                        }
+                    }).then(x=>x.json()).then(x=>{
+                        reply(`Thanks for the support! ${x.display_name} is a friend of the botwco, sacrifice a new tab and follow em at twitch.tv/${x.display_name.toLowerCase()}! They were last live streaming ${x.game}`)
+                    })
+                })
+            })
+        }
+    }
     if (args[0] == "!eval") {
         if (message.user.username != "komali09" && message.user.id != "327879060443234314") return;
         args.shift();
@@ -423,6 +632,17 @@ bot.on("message", message => {
     }
     if (args[0] == "!hi") {
         reply(`Hello, ${message.user["display-name"]}`);
+    }
+
+
+    if(["!commentators","!comms","!coms"].includes(args[0])) {
+        let channel = args.includes("-fos")?"731993923001516075":"901620873742659585";
+        let M = djs_client.channels.cache.get(channel).members.array();
+        M = M.map(x=>`${x.user.username} (${message.discord?"<https://":''}twitch.tv/${
+            Object.keys(UsernameExceptions).includes(x.user.id) ? UsernameExceptions[x.user.id] : x.user.username.toLowerCase().replace(/ /g, "_")
+        }${message.discord?">":''})`);
+        if(M.length < 1) return reply("There are no commentators currently!");
+        else return reply("Go support our commentators! " + M.join(" | "))
     }
     
 })
