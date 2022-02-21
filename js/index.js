@@ -14,6 +14,11 @@ const UsernameExceptions = { //Twitch/Discord syncing for those whos names do no
     "312830913912242176": "powergaymerkai",
     "706242928363700294": "takosensei101",
     "448790275372875789": "epicsgeiler",
+    "673550715137818635": "z2w_02",
+    "161576331505696768": "mrpancaketurtle",
+    "435878781891248138": "sloop28_",
+    "488708336624074753": "coensi",
+    "536179895047290881": "arcturus_botw",
     //People who don't commentate but are still active
     "659901334266576926": "cinnnamon_",
     "772287021107511307": "p3ngu1nc4t",
@@ -238,6 +243,7 @@ let twitchemotes = require("./emotes.json"); // taken from another project; the 
 const default_colors = ["#FF0000", "#0000FF", "#00FF00", "#B22222", "#FF7F50", "#9ACD32", "#FF4500", "#2E8B57", "#DAA520", "#D2691E", "#5F9EA0", "#1E90FF", "#FF69B4", "#8A2BE2", "#00FF7F"];
 const discord = require("discord.js");
 const tmi = require("tmi.js");
+const c = require("fetch-cookie");
 const fetch = require("fetch-cookie/node-fetch")(require("node-fetch"));
 
 const bot = new e;
@@ -640,7 +646,7 @@ bot.on("message", message => {
         let M = djs_client.channels.cache.get(channel).members.array();
         M = M.map(x=>`${x.user.username} (${message.discord?"<https://":''}twitch.tv/${
             Object.keys(UsernameExceptions).includes(x.user.id) ? UsernameExceptions[x.user.id] : x.user.username.toLowerCase().replace(/ /g, "_")
-        }${message.discord?">":''})`);
+        }${message.discord?">":''})`).filter(n => !["31pnmr.alt", "bc_bot"].includes(n.split(".tv/")[1].split(message.discord?">":")")[0])); //Me being lazy and forgetting about this
         if(M.length < 1) return reply("There are no commentators currently!");
         else return reply("Go support our commentators! " + M.join(" | "))
     }
