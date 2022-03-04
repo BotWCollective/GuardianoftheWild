@@ -1,4 +1,7 @@
-use crate::{command::{CommandMap, CommandError}, BotError, BotResult, TwitchIrcClient, User};
+use crate::{
+    command::{CommandError, CommandMap},
+    BotError, BotResult, TwitchIrcClient, User,
+};
 use log::{debug, info};
 use std::env;
 use std::fmt;
@@ -62,7 +65,7 @@ impl Bot {
                     name = self.config.username
                 )
         {
-	        debug!("Message thrown out");
+            debug!("Message thrown out");
             return Ok(None);
         }
         let message = message.trim_end_matches("\r\n");
@@ -94,18 +97,21 @@ impl Bot {
         use BotError::Command;
         loop {
             if let Some(m) = self.try_parse_message()? {
-	            info!("{}: {}", m.sender, m.raw);
-	            let res = self.commands.lookup(m);
-	            match res {
-					Err(Command(CommandError::NotEnoughArgs)) => {self.client.send_message("Not enough arguments!")?;},
-					Err(Command(CommandError::AlreadyRegistered)) => {self.client.send_message("Command already exists!")?;}
-					Err(Command(CommandError::NotRegistered)) => {self.client.send_message("Command does not exist!")?;}
-					Ok(Some(m)) => {
-						info!("sent: {}", m);
-						self.client.send_message(&m)?;
-					},
-					_ => {}
-	            }
+                info!("{}: {}", m.sender, m.raw);
+                let res = self.commands.try_run_cmd(m);
+                match res {
+                    Err(Command(CommandError::NotEnoughArgs)) => {
+                        self.client.send_message("Not enough arguments!")?;
+                    }
+                    Err(Command(CommandError::NotRegistered)) => {
+                        self.client.send_message("Command/trigger/alias does not exist!")?;
+                    }
+                    Ok(Some(ref m)) => {
+                        info!("sent: {}", m);
+                        self.client.send_message(&m)?;
+                    }
+                    _ => {}
+                }
             }
         }
     }

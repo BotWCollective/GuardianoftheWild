@@ -205,7 +205,6 @@ dependencies = [
  "env_logger",
  "fasthash",
  "log",
- "regex",
  "tokio",
  "tungstenite",
  "url",

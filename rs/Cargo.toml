@@ -33,6 +33,3 @@ version = "0.4"
 git = "https://github.com/flier/rust-fasthash"
 default-features = false
 features = ["native", "seahash"]
-
-[dependencies.regex]
-version = "1.5"
